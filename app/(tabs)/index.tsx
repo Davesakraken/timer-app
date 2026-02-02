@@ -1,5 +1,6 @@
+import { Picker } from "@react-native-picker/picker";
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -14,6 +15,9 @@ export default function TimerScreen() {
   const [blockMinutes, setBlockMinutes] = useState("35");
   const [chunks, setChunks] = useState("0");
   const [breakMinutes, setBreakMinutes] = useState("2");
+
+  // State to track which picker modal is open
+  const [openPicker, setOpenPicker] = useState<"block" | "chunks" | "break" | null>(null);
 
   // Get color scheme for TextInput theming
   const colorScheme = useColorScheme();
@@ -77,53 +81,41 @@ export default function TimerScreen() {
           <View style={styles.configContainer}>
             <View style={styles.inputRow}>
               <ThemedText style={styles.inputLabel}>Block Duration (min):</ThemedText>
-              <TextInput
+              <Pressable
                 style={[
-                  styles.input,
-                  {
-                    color: Colors[colorScheme ?? "light"].text,
-                    borderColor: Colors[colorScheme ?? "light"].icon,
-                    backgroundColor: Colors[colorScheme ?? "light"].background,
-                  },
+                  styles.pickerButton,
+                  { borderColor: Colors[colorScheme ?? "light"].icon }
                 ]}
-                value={blockMinutes}
-                onChangeText={setBlockMinutes}
-                keyboardType="number-pad"
-              />
+                onPress={() => setOpenPicker("block")}
+              >
+                <ThemedText>{blockMinutes}</ThemedText>
+              </Pressable>
             </View>
 
             <View style={styles.inputRow}>
               <ThemedText style={styles.inputLabel}>Chunks (0 = none):</ThemedText>
-              <TextInput
+              <Pressable
                 style={[
-                  styles.input,
-                  {
-                    color: Colors[colorScheme ?? "light"].text,
-                    borderColor: Colors[colorScheme ?? "light"].icon,
-                    backgroundColor: Colors[colorScheme ?? "light"].background,
-                  },
+                  styles.pickerButton,
+                  { borderColor: Colors[colorScheme ?? "light"].icon }
                 ]}
-                value={chunks}
-                onChangeText={setChunks}
-                keyboardType="number-pad"
-              />
+                onPress={() => setOpenPicker("chunks")}
+              >
+                <ThemedText>{chunks}</ThemedText>
+              </Pressable>
             </View>
 
             <View style={styles.inputRow}>
               <ThemedText style={styles.inputLabel}>Break Duration (min):</ThemedText>
-              <TextInput
+              <Pressable
                 style={[
-                  styles.input,
-                  {
-                    color: Colors[colorScheme ?? "light"].text,
-                    borderColor: Colors[colorScheme ?? "light"].icon,
-                    backgroundColor: Colors[colorScheme ?? "light"].background,
-                  },
+                  styles.pickerButton,
+                  { borderColor: Colors[colorScheme ?? "light"].icon }
                 ]}
-                value={breakMinutes}
-                onChangeText={setBreakMinutes}
-                keyboardType="number-pad"
-              />
+                onPress={() => setOpenPicker("break")}
+              >
+                <ThemedText>{breakMinutes}</ThemedText>
+              </Pressable>
             </View>
 
             <Pressable style={styles.startButton} onPress={handleStart}>
@@ -133,6 +125,88 @@ export default function TimerScreen() {
             </Pressable>
           </View>
         )}
+
+        {/* Picker Modals */}
+        <Modal
+          visible={openPicker === "block"}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setOpenPicker(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
+              <View style={styles.modalHeader}>
+                <ThemedText type="subtitle">Block Duration (min)</ThemedText>
+                <Pressable onPress={() => setOpenPicker(null)} style={styles.doneButton}>
+                  <ThemedText style={styles.doneButtonText}>Done</ThemedText>
+                </Pressable>
+              </View>
+              <Picker
+                selectedValue={blockMinutes}
+                onValueChange={(itemValue) => setBlockMinutes(itemValue)}
+                style={styles.modalPicker}
+              >
+                {[...Array(61)].map((_, i) => (
+                  <Picker.Item key={i} label={`${i}`} value={`${i}`} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={openPicker === "chunks"}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setOpenPicker(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
+              <View style={styles.modalHeader}>
+                <ThemedText type="subtitle">Chunks</ThemedText>
+                <Pressable onPress={() => setOpenPicker(null)} style={styles.doneButton}>
+                  <ThemedText style={styles.doneButtonText}>Done</ThemedText>
+                </Pressable>
+              </View>
+              <Picker
+                selectedValue={chunks}
+                onValueChange={(itemValue) => setChunks(itemValue)}
+                style={styles.modalPicker}
+              >
+                {[...Array(21)].map((_, i) => (
+                  <Picker.Item key={i} label={`${i}`} value={`${i}`} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={openPicker === "break"}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setOpenPicker(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: Colors[colorScheme ?? "light"].background }]}>
+              <View style={styles.modalHeader}>
+                <ThemedText type="subtitle">Break Duration (min)</ThemedText>
+                <Pressable onPress={() => setOpenPicker(null)} style={styles.doneButton}>
+                  <ThemedText style={styles.doneButtonText}>Done</ThemedText>
+                </Pressable>
+              </View>
+              <Picker
+                selectedValue={breakMinutes}
+                onValueChange={(itemValue) => setBreakMinutes(itemValue)}
+                style={styles.modalPicker}
+              >
+                {[...Array(61)].map((_, i) => (
+                  <Picker.Item key={i} label={`${i}`} value={`${i}`} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        </Modal>
 
         {/* CHUNK_ACTIVE: Emergency stop button */}
         {currentState === "CHUNK_ACTIVE" && (
@@ -212,14 +286,45 @@ const styles = StyleSheet.create({
   inputLabel: {
     flex: 1,
   },
-  input: {
-    width: 80,
+  pickerButton: {
+    width: 100,
     height: 44,
     borderWidth: 1,
     borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  doneButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  doneButtonText: {
+    color: "#0a7ea4",
     fontSize: 16,
-    textAlign: "center",
+    fontWeight: "600",
+  },
+  modalPicker: {
+    width: "100%",
+    height: 200,
   },
   startButton: {
     backgroundColor: "#0a7ea4",
