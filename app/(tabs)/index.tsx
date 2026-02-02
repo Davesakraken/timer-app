@@ -1,98 +1,248 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useEffect, useState } from "react";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Colors } from "@/constants/theme";
+import { STATE_LABELS, TimerState } from "@/constants/timerConstants";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTimerStore } from "@/store/timerStore";
+import { formatTime } from "@/utils/formatTime";
 
-export default function HomeScreen() {
+export default function TimerScreen() {
+  // Local state for configuration inputs (used only in IDLE state)
+  const [blockMinutes, setBlockMinutes] = useState("35");
+  const [chunks, setChunks] = useState("0");
+  const [breakMinutes, setBreakMinutes] = useState("2");
+
+  // Get color scheme for TextInput theming
+  const colorScheme = useColorScheme();
+
+  // Subscribe to Zustand store
+  const {
+    currentState,
+    secondsRemaining,
+    currentChunk,
+    totalChunks,
+    setBlockConfig,
+    startBlock,
+    emergencyStop,
+    tick,
+  } = useTimerStore();
+
+  // Timer interval (runs in all active states)
+  useEffect(() => {
+    const activeStates: TimerState[] = ["CHUNK_ACTIVE", "CHUNK_BREAK", "NEUTRAL_RESET"];
+
+    if (activeStates.includes(currentState)) {
+      const interval = setInterval(() => tick(), 1000);
+      return () => clearInterval(interval); // CRITICAL: cleanup to prevent memory leaks
+    }
+  }, [currentState, tick]);
+
+  // Handle start with configuration
+  const handleStart = () => {
+    const duration = parseInt(blockMinutes) * 60;
+    const chunkCount = parseInt(chunks);
+    const breakDur = parseInt(breakMinutes) * 60;
+
+    setBlockConfig(duration, chunkCount, breakDur);
+    startBlock();
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
+    <ThemedView style={styles.container}>
+      {/* Header area with fixed height */}
+      <View style={styles.headerArea}>
+        <ThemedText type="subtitle" style={styles.stateLabel}>
+          {STATE_LABELS[currentState]}
         </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {totalChunks > 0 && (currentState === "CHUNK_ACTIVE" || currentState === "CHUNK_BREAK") && (
+          <ThemedText style={styles.chunkLabel}>
+            Chunk {currentChunk} of {totalChunks}
+          </ThemedText>
+        )}
+      </View>
+
+      {/* Centered area for timer and buttons */}
+      <View style={styles.centeredArea}>
+        {/* Large timer display (hide in IDLE state) */}
+        {currentState !== "IDLE" && (
+          <ThemedText style={styles.timerDisplay}>{formatTime(secondsRemaining)}</ThemedText>
+        )}
+
+        {/* IDLE: Configuration inputs and start button */}
+        {currentState === "IDLE" && (
+          <View style={styles.configContainer}>
+            <View style={styles.inputRow}>
+              <ThemedText style={styles.inputLabel}>Block Duration (min):</ThemedText>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: Colors[colorScheme ?? "light"].text,
+                    borderColor: Colors[colorScheme ?? "light"].icon,
+                    backgroundColor: Colors[colorScheme ?? "light"].background,
+                  },
+                ]}
+                value={blockMinutes}
+                onChangeText={setBlockMinutes}
+                keyboardType="number-pad"
+              />
+            </View>
+
+            <View style={styles.inputRow}>
+              <ThemedText style={styles.inputLabel}>Chunks (0 = none):</ThemedText>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: Colors[colorScheme ?? "light"].text,
+                    borderColor: Colors[colorScheme ?? "light"].icon,
+                    backgroundColor: Colors[colorScheme ?? "light"].background,
+                  },
+                ]}
+                value={chunks}
+                onChangeText={setChunks}
+                keyboardType="number-pad"
+              />
+            </View>
+
+            <View style={styles.inputRow}>
+              <ThemedText style={styles.inputLabel}>Break Duration (min):</ThemedText>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: Colors[colorScheme ?? "light"].text,
+                    borderColor: Colors[colorScheme ?? "light"].icon,
+                    backgroundColor: Colors[colorScheme ?? "light"].background,
+                  },
+                ]}
+                value={breakMinutes}
+                onChangeText={setBreakMinutes}
+                keyboardType="number-pad"
+              />
+            </View>
+
+            <Pressable style={styles.startButton} onPress={handleStart}>
+              <ThemedText type="defaultSemiBold" style={styles.buttonText}>
+                Start Block
+              </ThemedText>
+            </Pressable>
+          </View>
+        )}
+
+        {/* CHUNK_ACTIVE: Emergency stop button */}
+        {currentState === "CHUNK_ACTIVE" && (
+          <Pressable style={styles.stopButton} onPress={emergencyStop}>
+            <ThemedText type="defaultSemiBold" style={styles.buttonText}>
+              Emergency Stop
+            </ThemedText>
+          </Pressable>
+        )}
+
+        {/* CHUNK_BREAK: Locked (no buttons) */}
+        {currentState === "CHUNK_BREAK" && (
+          <ThemedText style={styles.lockedText}>Break in progress...</ThemedText>
+        )}
+
+        {/* NEUTRAL_RESET: Locked (no buttons) */}
+        {currentState === "NEUTRAL_RESET" && (
+          <ThemedText style={styles.lockedText}>Cannot start until cooldown completes</ThemedText>
+        )}
+      </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingTop: 80,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  headerArea: {
+    width: "100%",
+    alignItems: "center",
+    paddingBottom: 20,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  stateLabel: {
+    fontSize: 20,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  chunkLabel: {
+    fontSize: 14,
+    opacity: 0.6,
+    marginBottom: 0,
+    textAlign: "center",
+  },
+  centeredArea: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    marginTop: 20,
+  },
+  timerDisplay: {
+    fontSize: 72,
+    fontWeight: "bold",
+    lineHeight: 50,
+    marginBottom: 40,
+    letterSpacing: 2,
+    textAlign: "center",
+    paddingVertical: 20,
+  },
+  configContainer: {
+    width: "100%",
+    maxWidth: 400,
+    gap: 16,
+  },
+  inputRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  inputLabel: {
+    flex: 1,
+  },
+  input: {
+    width: 80,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    textAlign: "center",
+  },
+  startButton: {
+    backgroundColor: "#0a7ea4",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    marginTop: 20,
+    alignItems: "center",
+  },
+  stopButton: {
+    backgroundColor: "#d32f2f",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginTop: 20,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#fff",
+  },
+  lockedText: {
+    marginTop: 20,
+    opacity: 0.6,
+    textAlign: "center",
   },
 });
